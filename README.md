@@ -8,7 +8,7 @@
 
 ## About
 
-This repository documents my journey of implementing the HTTP protocol from scratch.
+This repository is about implementing the HTTP protocol from scratch.
 
 Instead of relying on Go's built-in `net/http` package, every chapter adds another building block of the protocol until a complete HTTP server is created.
 
