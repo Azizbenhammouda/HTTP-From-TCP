@@ -1,48 +1,44 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"strings"
 )
-
-func getLinesChannel(f io.ReadCloser) <-chan string {
-	out := make(chan string, 1)
-	go func() {
-		defer f.Close()
-		defer close(out)
-		str := ""
-		for {
-			data := make([]byte, 8)
-			n, err := f.Read(data)
-			if err != nil {
-				break
-			}
-			data = data[:n]
-			if i := bytes.IndexByte(data, '\n'); i != -1 {
-				str += string(data[:i])
-				data = data[i+1:]
-				out <- str
-				str = ""
-			}
-			str += string(data)
-		}
-		if len(str) != 0 {
-			out <- str
-		}
-	}()
-	return out
-}
 
 func main() {
 	f, err := os.Open("messages.txt")
 	if err != nil {
 		log.Fatal(err)
 	}
-	lines := getLinesChannel(f)
-	for line := range lines {
-		fmt.Printf("read:%s\n", line)
+	defer f.Close()
+
+	LINE := ""
+
+	for {
+		buf := make([]byte, 8)
+
+		n, err := f.Read(buf)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		parts := strings.Split(string(buf[:n]), "\n")
+
+		for i := 0; i < len(parts)-1; i++ {
+			fmt.Printf("read: %s%s\n", LINE, parts[i])
+			LINE = ""
+		}
+
+		LINE += parts[len(parts)-1]
+	}
+
+	if LINE != "" {
+		fmt.Printf("read: %s\n", LINE)
 	}
 }
