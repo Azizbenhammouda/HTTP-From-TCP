@@ -1,54 +1,67 @@
 package chap2
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"strings"
 )
 
 func getLinesChannel(f io.ReadCloser) <-chan string {
-	out := make(chan string, 1)
+	ch := make(chan string)
 	go func() {
 		defer f.Close()
-		defer close(out)
-		str := ""
+		defer close(ch)
+
+		LINE := ""
+
 		for {
-			data := make([]byte, 8)
-			n, err := f.Read(data)
-			if err != nil {
+			buf := make([]byte, 8)
+
+			n, err := f.Read(buf)
+			if err == io.EOF {
 				break
 			}
-			data = data[:n]
-			if i := bytes.IndexByte(data, '\n'); i != -1 {
-				str += string(data[:i])
-				data = data[i+1:]
-				out <- str
-				str = ""
+			if err != nil {
+				log.Fatal(err)
 			}
-			str += string(data)
+
+			parts := strings.Split(string(buf[:n]), "\n")
+
+			for i := 0; i < len(parts)-1; i++ {
+				ch <- (LINE + parts[i])
+				LINE = ""
+			}
+
+			LINE += parts[len(parts)-1]
 		}
-		if len(str) != 0 {
-			out <- str
+
+		if LINE != "" {
+			ch <- LINE
 		}
 	}()
-	return out
+
+	return ch
 }
 
 func main() {
-	listener, err := net.Listen("tcp", ":42069")
+	Listener, err := net.Listen("tcp", ":42069")
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer Listener.Close()
 	for {
-		conn, err := listener.Accept()
+		conn, err := Listener.Accept()
 		if err != nil {
-			log.Fatal(err)
+			fmt.Println(err.Error())
+			continue
 		}
+		fmt.Println("connection accepted")
 		for line := range getLinesChannel(conn) {
-			fmt.Printf("read:%s\n", line)
+			fmt.Println(line)
 		}
+		fmt.Println("connection terminated")
 
 	}
 
